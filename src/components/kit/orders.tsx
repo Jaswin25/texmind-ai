@@ -21,6 +21,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { ProgressBar, StatusBadge } from "@/components/kit/primitives";
 import { STAGES, STAGE_LABELS, buyers, type Order } from "@/lib/data";
+import { createOrderAPI } from "@/lib/api";
 
 export type Filters = {
   q: string;
@@ -288,49 +289,56 @@ export function CreateOrderDialog({
   });
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
 
-  function submit() {
+  async function submit() {
     setSaving(true);
-    setTimeout(() => {
-      const qty = Number(form.quantity) || 1000;
-      const order: Order = {
-        id: form.id,
-        buyerId: buyers.find((b) => b.company === form.buyer)?.id ?? "BUY-01",
-        buyer: form.buyer,
-        product: form.product,
-        category: form.category,
-        styleNo: form.styleNo,
-        poNo: form.poNo,
-        quantity: qty,
-        fabric: form.fabric,
-        color: form.color,
-        startDate: form.start,
-        deliveryDate: form.delivery,
-        priority: form.priority as Order["priority"],
-        status: "On Track",
-        currentStage: "yarn",
+    const qty = Number(form.quantity) || 1000;
+    const order: Order = {
+      id: form.id,
+      buyerId: buyers.find((b) => b.company === form.buyer)?.id ?? "BUY-01",
+      buyer: form.buyer,
+      product: form.product,
+      category: form.category,
+      styleNo: form.styleNo,
+      poNo: form.poNo,
+      quantity: qty,
+      fabric: form.fabric,
+      color: form.color,
+      startDate: form.start,
+      deliveryDate: form.delivery,
+      priority: form.priority as Order["priority"],
+      status: "On Track",
+      currentStage: "yarn",
+      progress: 0,
+      stages: STAGES.map((key, i) => ({
+        key,
+        label: STAGE_LABELS[key],
+        state: i === 0 ? "current" : "pending",
+        target: qty,
+        completed: 0,
+        pending: qty,
+        rejected: 0,
         progress: 0,
-        stages: STAGES.map((key, i) => ({
-          key,
-          label: STAGE_LABELS[key],
-          state: i === 0 ? "current" : "pending",
-          target: qty,
-          completed: 0,
-          pending: qty,
-          rejected: 0,
-          progress: 0,
-          rate: 2000 + i * 120,
-          manager: "Unassigned",
-          expected: "—",
-        })),
-      };
-      onCreated(order);
-      setSaving(false);
-      setStep(1);
-      onOpenChange(false);
-      toast.success(`${order.id} created`, {
-        description: "All 9 production stages initialised for this order.",
+        rate: 2000 + i * 120,
+        manager: "Unassigned",
+        expected: "—",
+      })),
+    };
+
+    const res = await createOrderAPI(order);
+    if (res.success) {
+      toast.success(`${order.id} saved to MongoDB!`, {
+        description: "Order & all 9 production stages stored directly in MongoDB.",
       });
-    }, 900);
+    } else {
+      toast.warning(`${order.id} created locally`, {
+        description: "Backend offline: saved to local session state.",
+      });
+    }
+
+    onCreated(order);
+    setSaving(false);
+    setStep(1);
+    onOpenChange(false);
   }
 
   const field = (label: string, key: keyof typeof form, placeholder?: string) => (

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { PackageSearch, Plus } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
@@ -13,6 +13,7 @@ import {
 } from "@/components/kit/orders";
 import { Button } from "@/components/ui/button";
 import { orders as seedOrders, type Order } from "@/lib/data";
+import { fetchOrders } from "@/lib/api";
 
 export const Route = createFileRoute("/orders/")({
   head: () => ({
@@ -30,6 +31,14 @@ function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>(seedOrders);
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    fetchOrders().then((data) => {
+      if (data && data.length > 0) {
+        setOrders(data);
+      }
+    });
+  }, []);
 
   const filtered = useMemo(() => filterOrders(orders, filters), [orders, filters]);
 
